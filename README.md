@@ -1,11 +1,11 @@
 # Tube Feeder Toolkit
 
-External tube feeder control system for the AR4 robot arms.
+External tube feeder control system for the FRL robot arms.
 Uses Arduino Uno R3 + DM322T driver + NEMA 17 stepper motor.
 
 ## Overview
 
-This toolkit provides control for an external tube feeding mechanism (similar to a 3D printer extruder) that can push/pull tubing. It integrates with the main AR4 HMI and can also be used standalone.
+This toolkit provides control for an external tube feeding mechanism (similar to a 3D printer extruder) that can push/pull tubing. It integrates with the main FRL HMI and can also be used standalone.
 
 ## Hardware
 
@@ -74,7 +74,7 @@ To recalibrate:
 | `serial_debug.py` | Low-level serial debugging script |
 | `feeder_debug.py` | Interactive diagnostic tool |
 | `run_feeder_test.sh` | Full launcher (port scan, camera, etc.) |
-| `AR4_feeder_test.py` | AR4 HMI with tube feeder integrated |
+| `AR4_feeder_test.py` | FRL HMI with tube feeder integrated |
 
 ## Quick Start
 
@@ -93,7 +93,7 @@ python3 tube_feeder/feeder_test.py
 # Commands: j+, j-, stop, f 10, r 10, s 20, ?, home
 ```
 
-### 3. Run with AR4 HMI
+### 3. Run with FRL HMI
 ```bash
 ./tube_feeder/run_feeder_test.sh --noscan --nocam
 # Click "Connect" on Tube Feeder panel
@@ -187,7 +187,7 @@ python3 feeder_test.py /dev/ttyACM3
 
 ## Development Notes
 
-### Adding to Main AR4 HMI
+### Adding to Main FRL HMI
 When ready to merge into the main `AR4_1.py`:
 1. Add import: `from feeder_test import TubeFeederController`
 2. Add RUN variables for tube feeder state
