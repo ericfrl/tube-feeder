@@ -1,5 +1,5 @@
 /*
- * Tube Feeder Controller
+ * Tube Feeder Controller + Wake Word LED
  * For Arduino Uno R3 + DM322T Driver + NEMA 17 (17HS19-2004S1)
  *
  * Wiring:
@@ -7,6 +7,7 @@
  *   Uno D3  -> DM322T DIR+
  *   Uno D4  -> DM322T ENA+
  *   Uno GND -> DM322T PUL-, DIR-, ENA-
+ *   Uno D13 -> LED (built-in) for wake word indicator
  *
  * Serial Commands (115200 baud):
  *   F<mm>   - Feed forward (e.g., F100 = feed 100mm)
@@ -18,12 +19,14 @@
  *   HOME    - Set current position as zero
  *   POS     - Report current position
  *   ?       - Report status
+ *   L<0-3>  - Set LED state (0=off, 1=idle/dim, 2=active/bright, 3=processing)
  */
 
 // Pin definitions
 #define PIN_STEP 2
 #define PIN_DIR  3
 #define PIN_ENA  4
+#define PIN_LED  13  // Built-in LED for wake word indicator
 
 // Direction constants
 #define DIR_FORWARD  HIGH
@@ -40,6 +43,7 @@ volatile bool isRunning = false;
 volatile bool stopRequested = false;
 bool jogMode = false;
 int jogDirection = DIR_FORWARD;
+int ledState = 0;  // Wake word LED state
 
 float currentPositionMm = 0.0;
 float targetSpeedMmSec = 10.0;
@@ -53,10 +57,12 @@ void setup() {
   pinMode(PIN_STEP, OUTPUT);
   pinMode(PIN_DIR, OUTPUT);
   pinMode(PIN_ENA, OUTPUT);
+  pinMode(PIN_LED, OUTPUT);
 
   digitalWrite(PIN_STEP, LOW);
   digitalWrite(PIN_DIR, DIR_FORWARD);
   digitalWrite(PIN_ENA, LOW);  // LOW = enabled for most drivers
+  digitalWrite(PIN_LED, LOW);  // LED off initially
 
   // Calculate initial step delay
   updateStepDelay();
@@ -188,6 +194,20 @@ void processCommand(String cmd) {
       break;
     }
 
+    case 'L': {
+      // LED control for wake word indicator
+      if (cmd.length() >= 2) {
+        int state = cmd.substring(1).toInt();
+        if (state >= 0 && state <= 3) {
+          setLED(state);
+          // Silent acknowledgment - don't spam serial
+        } else {
+          Serial.println("ERR LED_RANGE 0-3");
+        }
+      }
+      break;
+    }
+
     default:
       Serial.println("ERR UNKNOWN_CMD");
       break;
@@ -306,5 +326,26 @@ void reportStatus() {
   Serial.println(isRunning ? "YES" : "NO");
   Serial.print("Jog Mode: ");
   Serial.println(jogMode ? "YES" : "NO");
+  Serial.print("LED State: ");
+  Serial.println(ledState);
   Serial.println("--------------");
+}
+
+void setLED(int state) {
+  ledState = state;
+  // Use PWM for brightness levels
+  switch(state) {
+    case 0:  // OFF
+      analogWrite(PIN_LED, 0);
+      break;
+    case 1:  // IDLE - dim (listening for wake word)
+      analogWrite(PIN_LED, 30);
+      break;
+    case 2:  // ACTIVE - bright (recording command)
+      analogWrite(PIN_LED, 255);
+      break;
+    case 3:  // PROCESSING - medium
+      analogWrite(PIN_LED, 150);
+      break;
+  }
 }
