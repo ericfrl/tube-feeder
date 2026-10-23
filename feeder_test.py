@@ -13,141 +13,48 @@ import serial
 import serial.tools.list_ports
 import sys
 import time
-import threading
 
-class TubeFeederController:
+from FRL_tube_feeder import TubeFeederController
+
+
+class InteractiveTubeFeeder(TubeFeederController):
+    """Extended controller with interactive print output."""
+
     def __init__(self, port=None, baudrate=115200):
-        self.port = port
-        self.baudrate = baudrate
-        self.serial = None
-        self.connected = False
-        self.reading = False
-        self.read_thread = None
-
-    def find_arduino(self):
-        """Auto-detect Arduino Uno port."""
-        ports = serial.tools.list_ports.comports()
-
-        # First pass: look specifically for Arduino Uno
-        for port in ports:
-            desc = port.description.lower() if port.description else ''
-            if 'arduino' in desc and 'uno' in desc:
-                return port.device
-
-        # Second pass: look for Arduino (not Teensy)
-        for port in ports:
-            desc = port.description.lower() if port.description else ''
-            if 'arduino' in desc and 'teensy' not in desc:
-                return port.device
-
-        # Third pass: try to identify by VID/PID (Arduino Uno = 2341:0043 or 2341:0001)
-        for port in ports:
-            if port.vid == 0x2341:  # Arduino vendor ID
-                if port.pid in [0x0043, 0x0001, 0x0243]:  # Uno PIDs
-                    return port.device
-
-        return None
+        super().__init__(port, baudrate)
+        self.set_callback(lambda line: print(f"<< {line}"))
 
     def connect(self):
-        """Connect to the Arduino."""
+        """Connect with verbose output."""
         if self.port is None:
             self.port = self.find_arduino()
             if self.port is None:
                 print("ERROR: Could not find Arduino. Please specify port.")
                 return False
 
-        try:
-            self.serial = serial.Serial(self.port, self.baudrate, timeout=0.1)
-            time.sleep(2)  # Wait for Arduino reset
-
-            # Clear any startup messages
-            self.serial.reset_input_buffer()
-            self.serial.reset_output_buffer()
-
-            self.connected = True
-
-            # Start read thread
-            self.reading = True
-            self.read_thread = threading.Thread(target=self._read_loop, daemon=True)
-            self.read_thread.start()
-
+        result = super().connect()
+        if result:
             print(f"Connected to {self.port}")
-            return True
-        except serial.SerialException as e:
-            print(f"ERROR: Could not connect to {self.port}: {e}")
-            return False
+        else:
+            print(f"ERROR: Could not connect to {self.port}")
+        return result
 
     def disconnect(self):
-        """Disconnect from Arduino."""
-        self.reading = False
-        if self.serial and self.serial.is_open:
-            self.serial.close()
-        self.connected = False
+        """Disconnect with verbose output."""
+        super().disconnect()
         print("Disconnected")
 
-    def _read_loop(self):
-        """Background thread to read serial responses."""
-        while self.reading and self.serial and self.serial.is_open:
-            try:
-                if self.serial.in_waiting:
-                    line = self.serial.readline().decode('utf-8', errors='ignore').strip()
-                    if line:
-                        print(f"<< {line}")
-            except:
-                pass
-            time.sleep(0.01)
-
     def send(self, command):
-        """Send a command to the Arduino."""
+        """Send with verbose output."""
         if not self.connected:
             print("ERROR: Not connected")
             return False
-
-        try:
-            cmd = command.strip() + '\n'
-            self.serial.write(cmd.encode())
-            self.serial.flush()  # Ensure data is sent immediately
+        result = super().send(command)
+        if result:
             print(f">> {command}")
-            return True
-        except serial.SerialException as e:
-            print(f"ERROR: Send failed: {e}")
-            return False
-
-    def feed(self, mm):
-        """Feed forward by specified mm."""
-        return self.send(f"F{mm}")
-
-    def retract(self, mm):
-        """Retract by specified mm."""
-        return self.send(f"R{mm}")
-
-    def set_speed(self, mm_per_sec):
-        """Set feed speed in mm/sec."""
-        return self.send(f"S{mm_per_sec}")
-
-    def jog_forward(self):
-        """Start jogging forward."""
-        return self.send("J+")
-
-    def jog_reverse(self):
-        """Start jogging reverse."""
-        return self.send("J-")
-
-    def stop(self):
-        """Stop all motion."""
-        return self.send("STOP")
-
-    def home(self):
-        """Set current position as zero."""
-        return self.send("HOME")
-
-    def get_position(self):
-        """Query current position."""
-        return self.send("POS")
-
-    def get_status(self):
-        """Query full status."""
-        return self.send("?")
+        else:
+            print("ERROR: Send failed")
+        return result
 
 
 def print_help():
@@ -174,7 +81,7 @@ def main():
     # Get port from command line or auto-detect
     port = sys.argv[1] if len(sys.argv) > 1 else None
 
-    controller = TubeFeederController(port)
+    controller = InteractiveTubeFeeder(port)
 
     print("=== Tube Feeder Test Tool ===")
     print("Connecting...")

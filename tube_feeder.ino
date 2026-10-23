@@ -249,14 +249,7 @@ void feedDistance(float mm, int direction) {
     }
   }
 
-  // Update position
-  float actualMm = stepsCompleted / stepsPerMm;
-  if (direction == DIR_FORWARD) {
-    currentPositionMm += actualMm;
-  } else {
-    currentPositionMm -= actualMm;
-  }
-
+  // Position already tracked per-step in doStep()
   isRunning = false;
 
   if (stopRequested) {
